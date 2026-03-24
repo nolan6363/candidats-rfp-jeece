@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS voeux (
 CREATE TABLE IF NOT EXISTS action_logs (
     id           INT AUTO_INCREMENT PRIMARY KEY,
     candidate_id INT NOT NULL,
-    action       ENUM('abandoned', 'restored', 'voeu_deleted') NOT NULL,
-    voeu_rank    TINYINT NULL,
+    action       ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL,
+    voeu_rank    SMALLINT NULL,
     voeu_role    VARCHAR(100) NULL,
     created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE

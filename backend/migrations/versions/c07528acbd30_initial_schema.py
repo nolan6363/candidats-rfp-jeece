@@ -31,7 +31,8 @@ def upgrade():
     # Ajoute les colonnes si elles n'existent pas déjà (table créée par une ancienne version d'init.sql)
     op.execute("ALTER TABLE action_logs ADD COLUMN IF NOT EXISTS voeu_rank SMALLINT NULL")
     op.execute("ALTER TABLE action_logs ADD COLUMN IF NOT EXISTS voeu_role VARCHAR(100) NULL")
-    op.execute("ALTER TABLE action_logs MODIFY COLUMN action ENUM('abandoned', 'restored', 'voeu_deleted') NOT NULL")
+    # Met à jour l'enum uniquement si la valeur n'est pas déjà présente
+    op.execute("ALTER TABLE action_logs MODIFY COLUMN action ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL")
 
 
 def downgrade():

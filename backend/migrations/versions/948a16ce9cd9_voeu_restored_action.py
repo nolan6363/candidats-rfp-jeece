@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("ALTER TABLE action_logs MODIFY COLUMN IF EXISTS action ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL")
+    op.execute("ALTER TABLE action_logs MODIFY COLUMN action ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL")
 
 
 def downgrade():
