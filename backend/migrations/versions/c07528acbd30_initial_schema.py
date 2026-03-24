@@ -25,8 +25,7 @@ def upgrade():
             action       ENUM('abandoned', 'restored', 'voeu_deleted') NOT NULL,
             voeu_rank    SMALLINT NULL,
             voeu_role    VARCHAR(100) NULL,
-            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
+            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     """)
     # Ajoute les colonnes si elles n'existent pas déjà (table créée par une ancienne version d'init.sql)
