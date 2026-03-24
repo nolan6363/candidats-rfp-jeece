@@ -26,7 +26,8 @@ services:
       dockerfile: Dockerfile
     container_name: jeece_rfp_api
     restart: unless-stopped
-    command: sh -c "flask db upgrade && gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 120 --access-logfile - --error-logfile - 'app:create_app()'"
+    entrypoint: ["./entrypoint.sh"]
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 120 --access-logfile - --error-logfile - "app:create_app()"
     environment:
       FLASK_ENV: production
       DB_HOST: db
