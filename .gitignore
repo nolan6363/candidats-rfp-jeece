@@ -1,0 +1,15 @@
+# Env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Alembic cache
+backend/migrations/versions/__pycache__/

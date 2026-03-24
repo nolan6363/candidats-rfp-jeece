@@ -1,0 +1,70 @@
+services:
+  mariadb:
+    image: mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootdevpassword}
+      MYSQL_DATABASE: ${DB_NAME:-jeece_rfp}
+      MYSQL_USER: ${DB_USER:-jeece}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-devpassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - jeece_rfp_network
+
+  flask-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: sh -c "flask db upgrade && flask run --host=0.0.0.0 --port=5000 --reload"
+    environment:
+      FLASK_APP: "app:create_app()"
+      FLASK_ENV: development
+      FLASK_DEBUG: "1"
+      DB_HOST: mariadb
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-jeece_rfp}
+      DB_USER: ${DB_USER:-jeece}
+      DB_PASSWORD: ${DB_PASSWORD:-devpassword}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-dev-secret-key}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-key}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    volumes:
+      - ./backend/app:/app/app:rw
+      - ./backend/migrations:/app/migrations:rw
+    ports:
+      - "5000:5000"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - jeece_rfp_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend/src:/app/src:rw
+      - ./frontend/public:/app/public:rw
+      - ./frontend/index.html:/app/index.html:rw
+    ports:
+      - "5173:5173"
+    environment:
+      NODE_ENV: development
+    networks:
+      - jeece_rfp_network
+
+volumes:
+  mariadb_data:
+
+networks:
+  jeece_rfp_network:
+    driver: bridge

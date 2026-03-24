@@ -1,0 +1,118 @@
+services:
+  db:
+    image: mariadb:10.11
+    container_name: jeece_rfp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./backend/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - jeece_rfp_network
+
+  flask-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jeece_rfp_api
+    restart: unless-stopped
+    command: sh -c "flask db upgrade && gunicorn --bind 0.0.0.0:5000 --workers 4 --worker-class gthread --threads 8 --timeout 120 --access-logfile - --error-logfile - 'app:create_app()'"
+    environment:
+      FLASK_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - autoheal=true
+    networks:
+      - jeece_rfp_network
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    container_name: jeece_rfp_nginx
+    restart: unless-stopped
+    depends_on:
+      - flask-api
+    labels:
+      - traefik.enable=true
+      - "traefik.http.routers.jeece-rfp.rule=${TRAEFIK_RULE}"
+      - traefik.http.routers.jeece-rfp.entrypoints=websecure
+      - traefik.http.routers.jeece-rfp.tls=true
+      - traefik.http.routers.jeece-rfp.tls.certresolver=letsencrypt
+      - traefik.http.services.jeece-rfp.loadbalancer.server.port=80
+      - traefik.docker.network=homelab
+      - autoheal=true
+    networks:
+      - jeece_rfp_network
+      - homelab
+
+  backup:
+    image: mariadb:10.11
+    container_name: jeece_rfp_backup
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - backup_data:/backups
+    entrypoint: >
+      sh -c '
+      while true; do
+        sleep 86400;
+        mysqldump -h$$DB_HOST -u$$DB_USER -p$$DB_PASSWORD $$DB_NAME > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql;
+        find /backups -name "*.sql" -mtime +7 -delete;
+        echo "Backup done: $$(date)";
+      done
+      '
+    depends_on:
+      - db
+    networks:
+      - jeece_rfp_network
+
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: jeece_rfp_autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=30
+      - AUTOHEAL_START_PERIOD=300
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  db_data:
+  backup_data:
+
+networks:
+  homelab:
+    external: true
+  jeece_rfp_network:
+    driver: bridge
