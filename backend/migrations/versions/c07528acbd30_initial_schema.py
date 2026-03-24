@@ -17,21 +17,37 @@ depends_on = None
 
 
 def upgrade():
-    # Crée la table si elle n'existe pas (volume neuf sans init.sql complet)
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS candidates (
+            id        INT AUTO_INCREMENT PRIMARY KEY,
+            prenom    VARCHAR(100) NOT NULL,
+            nom       VARCHAR(150) NOT NULL,
+            abandoned BOOLEAN NOT NULL DEFAULT FALSE
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS voeux (
+            id           INT AUTO_INCREMENT PRIMARY KEY,
+            candidate_id INT NOT NULL,
+            rank         TINYINT NOT NULL,
+            role         VARCHAR(100) NOT NULL,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE,
+            UNIQUE KEY uq_candidate_rank (candidate_id, rank)
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    """)
     op.execute("""
         CREATE TABLE IF NOT EXISTS action_logs (
             id           INT AUTO_INCREMENT PRIMARY KEY,
             candidate_id INT NOT NULL,
-            action       ENUM('abandoned', 'restored', 'voeu_deleted') NOT NULL,
+            action       ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL,
             voeu_rank    SMALLINT NULL,
             voeu_role    VARCHAR(100) NULL,
-            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
         ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
     """)
-    # Ajoute les colonnes si elles n'existent pas déjà (table créée par une ancienne version d'init.sql)
     op.execute("ALTER TABLE action_logs ADD COLUMN IF NOT EXISTS voeu_rank SMALLINT NULL")
     op.execute("ALTER TABLE action_logs ADD COLUMN IF NOT EXISTS voeu_role VARCHAR(100) NULL")
-    # Met à jour l'enum uniquement si la valeur n'est pas déjà présente
     op.execute("ALTER TABLE action_logs MODIFY COLUMN action ENUM('abandoned', 'restored', 'voeu_deleted', 'voeu_restored') NOT NULL")
 
 
